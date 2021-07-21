@@ -1,0 +1,14 @@
+mempool MEMPOOL0 buffer 2304 pool 32K cache 256 cpu 0
+link INVI port 1 rxq 1 128 MEMPOOL0 txq 1 512 promiscuous  on
+link OUTVI port 2 rxq 1 128 MEMPOOL0 txq 1 512 promiscuous  on
+
+pipeline PIPELINE0 create 0
+
+pipeline PIPELINE0 port in 0 link INVI rxq 0 bsz 1
+
+pipeline PIPELINE0 port out 0 link OUTVI txq 0 bsz 1
+
+pipeline PIPELINE0 build sink.spec
+pipeline PIPELINE0 table table_send_report update sink-table none none
+
+thread 1 pipeline PIPELINE0 enable
