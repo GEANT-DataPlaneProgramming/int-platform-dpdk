@@ -113,11 +113,13 @@ header int_q_occupancy_t {
 }
 
 header int_ingress_tstamp_t {
-    bit<64> ingress_tstamp;
+    bit<32> ingress_tstamp_h;
+    bit<32> ingress_tstamp_l;
 }
 
 header int_egress_tstamp_t {
-    bit<64> egress_tstamp;
+    bit<32> egress_tstamp_h;
+    bit<32> egress_tstamp_l;
 }
 
 header int_level2_port_ids_t {
@@ -136,6 +138,10 @@ struct layer34_metadata_t {
 }
 
 struct metadata {
+    bit<32> ingress_tstamp_system_h;
+    bit<32> ingress_tstamp_system_l;
+    bit<32> egress_tstamp_system_h;
+    bit<32> egress_tstamp_system_l;
     layer34_metadata_t layer34_metadata;
 }
 

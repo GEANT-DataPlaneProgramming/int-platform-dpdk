@@ -1,3 +1,4 @@
+sudo apt update
 sudo apt install -y clang cmake meson gdb net-tools
 git clone --recursive https://github.com/MarioKuka/t4p4s.git
 cd t4p4s

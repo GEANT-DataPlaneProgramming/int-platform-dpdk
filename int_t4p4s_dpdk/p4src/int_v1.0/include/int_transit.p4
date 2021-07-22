@@ -39,11 +39,13 @@ control Int_transit(inout headers hdr, inout metadata meta, inout standard_metad
     }
     action int_set_header_4() {
         hdr.int_ingress_tstamp.setValid();
-        hdr.int_ingress_tstamp.ingress_tstamp = 0; //meta.int_metadata.ingress_tstamp * 1000; //convert us to ns
+        hdr.int_ingress_tstamp.ingress_tstamp_h = meta.ingress_tstamp_system_h;
+        hdr.int_ingress_tstamp.ingress_tstamp_l = meta.ingress_tstamp_system_l;
     }
     action int_set_header_5() {
         hdr.int_egress_tstamp.setValid();
-        hdr.int_egress_tstamp.egress_tstamp = 0; //standard_metadata.egress_global_timestamp * 1000; //convert us to ns
+        hdr.int_egress_tstamp.egress_tstamp_h = meta.egress_tstamp_system_h;
+        hdr.int_egress_tstamp.egress_tstamp_l = meta.egress_tstamp_system_l;
     }
     action int_set_header_6() {
         hdr.int_level2_port_ids.setValid();

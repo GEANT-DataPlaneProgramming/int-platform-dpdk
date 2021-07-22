@@ -42,6 +42,8 @@ control ingress(inout headers hdr, inout metadata meta, inout standard_metadata_
 
 control egress(inout headers hdr, inout metadata meta, inout standard_metadata_t eg_intr_md) {
     apply {
+        hdr.int_egress_tstamp.egress_tstamp_h = meta.egress_tstamp_system_h;
+        hdr.int_egress_tstamp.egress_tstamp_l = meta.egress_tstamp_system_l;
     }
 }
 
