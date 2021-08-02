@@ -7,11 +7,11 @@
 1. Download and install dpdk
     * You can do so using `dpdk-install.sh` script
 2. Download and install p4c compiler
-    * You should follow the instructions on [this site](https://github.com/p4lang/p4c) 
+    * You should follow the instructions in [p4lang/p4c repository](https://github.com/p4lang/p4c) 
 
 3. You should be able to compile and run p4 codes
-    * To do so you can either run script `swx_p4c.sh` (before doing so please read [this](#compile-using-script) first)
-    * To do so on your on follow [this](#compile-on-your-own)
+    * To do so you can either run script `swx_p4c.sh` (before doing so please read [Compile using script](#compile-using-script) section first)
+    * To do so on your on follow [Compile on your own](#compile-on-your-own)
 
 
 ### Compile using script
