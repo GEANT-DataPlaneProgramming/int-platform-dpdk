@@ -23,7 +23,7 @@
 #include <core.p4>
 #include <psa.p4>
 
-#include "headers.p4"
+#include "../headers.p4"
 
 parser MyIngressParser(packet_in packet,
                 out     headers_t                               hdr,

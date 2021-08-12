@@ -1,3 +1,6 @@
+# INT implementation for p4c-dpdk compiler
+This implementation uses psa model
+
 ## This repository is work in progress
 
 
@@ -7,15 +10,17 @@
 1. Download and install dpdk
     * You can do so using `dpdk-install.sh` script
 2. Download and install p4c compiler
+    * Compiler is part of this repository as a submodule. You can find it in a p4c folder.
     * You should follow the instructions in [p4lang/p4c repository](https://github.com/p4lang/p4c) 
+    * Or you can use `p4-install.sh` script available in `install` folder. (There is also script for installing dependencies)
 
 3. You should be able to compile and run p4 codes
     * To do so you can either run script `swx_p4c.sh` (before doing so please read [Compile using script](#compile-using-script) section first)
-    * To do so on your on follow [Compile on your own](#compile-on-your-own)
+    * To do so on your own follow [Compile on your own](#compile-on-your-own)
 
 
 ### Compile using script
-The script is very simple and therefore before it can be used it needs some care.
+The script is very simple and therefore before use it needs some care.
 1. You need to change some paths
     * Specifically the one stored in `P4C` and `PIPE` variables
     In `P4C` variable path to the p4c-dpdk compiler should be stored
@@ -31,10 +36,9 @@ The script is very simple and therefore before it can be used it needs some care
     Program can be run using following command: `sudo ./pipeline --vdev=net_tap3,iface=int_in --vdev=net_tap2,iface=int_out -- -s source-cli`
     
 ### Notes
-1. Virual interfaces
-    * When aplication is running you should see two new interfaces (in default `int_in` and `int_out`). But in some cases only one interface is visible 
-    (it should be the second one -> `int_out`). In this case you should add one more virual interface `IFC0` Here is an example `IFC0="--vdev=net_tap,iface=int_zero"` 
-    `PARAM="$IFC0 $IFC1 $IFC2"`
-    
-2. Folder layout
-    * Unfortunely all source files including .spec and -cli files needs to be in same folder. There is some problem with -cli script. Hopefuly this will be resolved soon. 
+1. Transit nodes
+    If number of actual transit nodes is lower then max number of node headers in stack (in this case 2) report may be corrupted
+2. Sink node
+    This implementation does not support cloning therefore only one packet is produced. In default it is report packet. Note that key is present which match udp source ports, in default 42 should produce original packet and 800 report packet.
+3. Running code
+    All related files should be in same folder ex. all files for running source.p4 (source.spec, source-cli, source-tables) should be in one folder. This is because dpdk interpret has some problem when files are somewhere else.

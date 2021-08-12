@@ -23,7 +23,7 @@
 #include <core.p4>
 #include <psa.p4>
 
-#include "headers.p4"
+#include "../headers.p4"
 
 const bit<16> MASK_CONST = 6;
 const bit<16> X_CONST = 4;
@@ -129,13 +129,14 @@ control MyIngress(
 
     table table_send_report {
         key = {
-            hdr.ipv4.srcAddr : exact;
+            hdr.udp.srcPort : exact;
         }
 
         actions = {
             send_raw;
             remove_int;
         }
+        default_action = send_raw();
     }
 
     apply {

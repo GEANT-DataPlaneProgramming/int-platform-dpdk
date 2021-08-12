@@ -258,4 +258,3 @@ struct headers_t {
 
     ck_helper_t                ck_helper;
 }
-

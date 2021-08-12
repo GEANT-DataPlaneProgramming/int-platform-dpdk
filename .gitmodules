@@ -1,0 +1,3 @@
+[submodule "int_p4c-dpdk_dpdk/p4c"]
+	path = int_p4c-dpdk_dpdk/p4c
+	url = https://github.com/p4lang/p4c.git
