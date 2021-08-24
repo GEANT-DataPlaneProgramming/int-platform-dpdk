@@ -1,4 +1,26 @@
 #!/bin/sh
+# 
+#  Copyright 2020 PSNC
+# 
+#  Author: Pavlína Patová
+# 
+#  Created in the GN4-3 project.
+# 
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+# 
+#      http://www.apache.org/licenses/LICENSE-2.0
+# 
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+# 
+#
+#  /////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 usage() { 
     echo "Each node needs to have its own folder which contains" 
@@ -15,6 +37,9 @@ usage() {
     echo "\t -t == Determines how many transit nodes will be applied"
     echo "\t -p == Path to the first packet"
     echo "\tWARNING \n\t\t-c and -r cannot be used at same time \n\t\tAlso if -a is present, both -c and -r will be ignored"
+    echo "\t -m == Destination mac address. Used only for transit. \n\t\tNote: mac address 0xffffffffffff (BC) has special meaning -> mac address will not be changed. \n\t\tThis value is used as default"
+    echo "\t -n == Max nodes"
+    echo "\t -d == P4 will not be generated (from templates)"
 
     exit 1;
 }
@@ -73,8 +98,8 @@ run() {
 
     # Interface setup
     #IFC0="--vdev=net_tap,iface=int_primo"
-    IFC1="--vdev=net_tap3,iface=int_in"
-    IFC2="--vdev=net_tap2,iface=int_out"
+    IFC1="--vdev=net_tap3,iface=$FIRST_IFC"
+    IFC2="--vdev=net_tap2,iface=$SECOND_IFC"
     # PARAM="$IFC0 $IFC1 $IFC2"
     PARAM="$IFC1 $IFC2"
 
@@ -107,15 +132,31 @@ run_all() {
 
     # Setup catching
     sleep 5
+    
+    # DUMP
+    if [ $SRC = "sink" ]
+    then
+        echo "\033[33mtcpdump -c 10 -i $OUT_IFC -XX &\033[0m"
+        sudo tcpdump -c 10 -i $OUT_IFC -XX &
+    else
+        echo "\033[33mtcpdump -c 1 -w $PCAP_OUT -i $OUT_IFC $OPTIONS &\033[0m"
+        sudo tcpdump -c 1 -w $PCAP_OUT -i $OUT_IFC $OPTIONS &
+    fi
 
-    echo "\033[33mtcpdump -c 1 -w $PCAP_OUT -i $OUT_IFC src port 42 &\033[0m"
-    sudo tcpdump -c 1 -w $PCAP_OUT -i $OUT_IFC src port 42 &
     sleep 1
 
-    echo "\033[33mtcpreplay -i $IN_IFC $PCAP_IN\033[0m"
-    sudo tcpreplay -i $IN_IFC $PCAP_IN
+    # REPLAY
+    CODE="tcpreplay -i $IN_IFC $PCAP_IN"
 
-    sleep 2
+    echo "\033[33m$CODE\033[0m"
+    sudo $CODE
+
+    if [ $SRC = "sink" ]
+    then
+        sleep 5
+    else
+        sleep 2
+    fi
     # Kill running dpdk pipeline
     #@!#
     PID_RAW=`ps aux | grep dpdk-21.05/examples/pipeline | grep Rl`
@@ -132,6 +173,13 @@ RUN_ONLY=0
 RUN_ALL=0
 TRAN_CNT=1
 PCAP_IN="udp.pcap"
+NODE_CNT=2
+MAC_ADDR="0xffffffffffff"
+GEN_EN=1
+OPTIONS="dst port 42"
+
+FIRST_IFC="int1"
+SECOND_IFC="int2"
 
 # Path to compiler
 P4C="../../../../p4c/build/p4c-dpdk"
@@ -140,7 +188,7 @@ P4C="../../../../p4c/build/p4c-dpdk"
 # WARNING if "dpdk-21.05/examples/pipeline" part is changed code after this @!# also needs to be changed
 PIPE="../../../../dpdk-21.05/examples/pipeline/build/pipeline"
 
-while getopts "s:crat:p:" o; do
+while getopts "s:crat:p:m:n:d" o; do
     case "${o}" in
         s)
             SRC=${OPTARG}
@@ -160,6 +208,15 @@ while getopts "s:crat:p:" o; do
         p)
             PCAP_IN=${OPTARG}
             ;;
+        m)
+            MAC_ADDR=${OPTARG}
+            ;;
+        n)
+            NODE_CNT=${OPTARG}
+            ;;
+        d)
+            GEN_EN=0
+            ;;
         h) 
             usage
             ;;
@@ -176,30 +233,76 @@ then
     exit 1
 fi
 
+if [ $TRAN_CNT -gt $NODE_CNT ]
+then
+    echo "Number of transit nodes cannot be higher then max nodes"
+    exit 1
+fi
+
 # All nodes
 if [ $RUN_ALL -eq 1 ]
 then
+    if [ $GEN_EN -eq 1 ]
+    then
+        python3 generate.py -r -t -s -n $NODE_CNT -m $MAC_ADDR
+    fi
     # Common variables
-    IN_IFC="int_in"
-    OUT_IFC="int_out"
-    CNT=0 
     
+    CNT=0 
+
+    # SOURCE
+    # In CLI IN and OUT ifc are swapped
+    IN_IFC=$SECOND_IFC
+    OUT_IFC=$FIRST_IFC
+
     run_all source $PCAP_IN $CNT
 
+    IN_IFC=$FIRST_IFC
+    OUT_IFC=$SECOND_IFC
+
+    # TRANSIT
     while [ $CNT -ne $TRAN_CNT ]
     do
         if [ $CNT -eq 0 ]
         then
+            
+
             run_all transit source$CNT.pcap  $CNT
         else
+            
+
             run_all transit transit$((CNT-1)).pcap  $CNT
         fi
         CNT=$((CNT+1))
     done
+
+    # SINK
     run_all sink    transit$((TRAN_CNT-1)).pcap $CNT
 
 # Single node
 else
+    OLD=$SRC
+    SRC="int"
+    if [ $GEN_EN -eq 1 ]
+    then
+        if [ $OLD = "transit" ]
+        then
+            python3 generate.py -r -t -n $NODE_CNT -m $MAC_ADDR
+        
+        elif [ $OLD = "sink" ]
+        then
+            python3 generate.py -r -s -n $NODE_CNT -m $MAC_ADDR
+
+        elif [ $OLD = "source" ]
+        then
+            python3 generate.py -r -c -n $NODE_CNT -m $MAC_ADDR
+            
+        else
+            python3 generate.py -r -n $NODE_CNT
+        fi
+
+    fi
+
     # Compile code if it is allowed
     if [ $RUN_ONLY -ne 1 ]
     then
