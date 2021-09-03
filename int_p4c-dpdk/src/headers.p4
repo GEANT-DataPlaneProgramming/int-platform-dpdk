@@ -26,36 +26,38 @@ const bit<16> UDP_LEN    = 8;
 const bit<16> REPORT_LEN = 22;
 
 // Following 2 fields must always have same value
-const bit<8>    IPv4_DSCP_INT       = {{d}};
-const bit<16>   IPv4_DSCP_INT_16    = {{d}};
+const bit<8>    IPv4_DSCP_INT       = 0x20;
+const bit<16>   IPv4_DSCP_INT_16    = 0x20;
 
-const bit<8> INT_SHIM_HEADER_LEN_BYTES_8 = {{i}};
-const bit<16> INT_SHIM_HEADER_LEN_BYTES = {{i}};
+const bit<8> DSCP_MASK = 0x3f;
+
+const bit<8> INT_SHIM_HEADER_LEN_BYTES_8 = 6;
+const bit<16> INT_SHIM_HEADER_LEN_BYTES = 6;
 
 const bit<8> INT_TYPE_HOP_BY_HOP = 1;
 
-const bit<8> INT_HEADER_LEN_BYTES_8 = {{b}};
-const bit<16> INT_HEADER_LEN_BYTES = {{b}};
+const bit<8> INT_HEADER_LEN_BYTES_8 = 14;
+const bit<16> INT_HEADER_LEN_BYTES = 14;
 
 const bit<8> INT_VERSION = 1;
-const bit<8> INT_REPORT_HEADER_LEN_WORDS = {{w}};
+const bit<8> INT_REPORT_HEADER_LEN_WORDS = 4;
 
 const bit<8> INT_ALL_HEADER_LEN_BYTES_8 = INT_SHIM_HEADER_LEN_BYTES_8 + INT_HEADER_LEN_BYTES_8;
 const bit<16> INT_ALL_HEADER_LEN_BYTES = INT_SHIM_HEADER_LEN_BYTES + INT_HEADER_LEN_BYTES;
 
 // Following 2 fields must always have same value
-const bit<8>    MAX_HOP_8  = {{n}};
-const bit<16>   MAX_HOP_16 = {{n}};
+const bit<8>    MAX_HOP_8  = 04;
+const bit<16>   MAX_HOP_16 = 04;
 
-const bit<8> HOP_META_LEN = {{l}};
-const bit<16> HOP_META_LEN_UPPER = 0x{{"{:02x}".format(l)}}00;
-const bit<16> HOP_INFO = 0x{{"{:02x}".format(l)}}{{n}};
+const bit<8> HOP_META_LEN = 6;
+const bit<16> HOP_META_LEN_UPPER = 0x0600;
+const bit<16> HOP_INFO = 0x0604;
 //const bit<16> HOP_INFO = 0x0604; // Upper 8b corresponds to HOP_META_LEN lower 8b MAX_HOP
 // Field is necesary for checksum computation.
 
-const bit<8> INSTRUCTION_MASK1 = {{a}};//0X0C;
-const bit<8> INSTRUCTION_MASK2 = {{k}};//0X0C;
-const bit<16> INSTRUCTION_MASK_COMPLET = 0x{{"{:02x}".format(a)}}{{"{:02x}".format(k)}};//0x0c0c; // Upper 8b corresponds to INSTRUCTION_MASK1 lower 8b INSTRUCTION_MASK2
+// const bit<8> INSTRUCTION_MASK1 = 12;//0X0C;
+// const bit<8> INSTRUCTION_MASK2 = 12;//0X0C;
+const bit<16> INSTRUCTION_MASK_COMPLET = 0x00cc;//0x0c0c;//0x0c0c; // Upper 8b corresponds to INSTRUCTION_MASK1 lower 8b INSTRUCTION_MASK2
 // Field is necesary for checksum computation.
 
 header ethernet_t {
@@ -113,15 +115,13 @@ header transit_int_header_t {
     bit<16> rsvd2; 
     bit<16> hop_info;  
 
-    bit<8> instruction_mask1;
-    bit<8> instruction_mask2;    
+    bit<16> instruction_mask;   
     bit<16> rsvd3;
 }
 
 // Auxiliary header for checksum
 // Not for emiting
 header ck_helper_t {
-    bit<16> instruction_mask;
     bit<16> old_udp_len;
     bit<8> old_shim_len;
     bit<16> old_hop;
@@ -236,6 +236,8 @@ struct metadata_t {
 
     bit<16> l4_src;
     bit<16> l4_dst;
+
+    bit<16> mask;
 }
 
 header int_report_fixed_header_t {
@@ -251,7 +253,7 @@ header int_report_fixed_header_t {
     bit<8> padding;
     bit<32> switch_id;
     bit<32> seq_num;
-    bit<32> ingress_tstamp;
+    Timestamp_t ingress_tstamp;
 }
 
 // header int_report_fixed_header_t {

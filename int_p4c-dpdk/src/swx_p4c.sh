@@ -28,14 +28,15 @@ usage() {
     echo "\t*cli code. \n\t\tIt needs to have same name as p4 code + -cli sufix. ex. source.p4 -> source-cli\n"
     echo "\t*tables. This is optional and depends on cli code"
 
-    echo "Usage: $0 -s node_name [-c] [-r] [-a] [-t number] [-p pcap]\n" 1>&2;
+    echo "This script uses generate.py which have some other functions. If you want to first generate p4 code using that script, you can do so. Then you just can use -d parameter to simply run and compile custom generated code."
+    echo "Usage: $0 -s node_name [-c] [-r] [-a] [-t number] [-p pcap]\n"
     echo "\t -s == Name of the node ex.source, transit, sink"
     echo "\t -c == If this flag is present. Code is only compiled"
     echo "\t -r == If this flag is present. Code is only executed"
     echo "\t -a == If this flag is present. Whole pipeline will be executed"
     echo "\t Following atributes have meaning only if -a was used"
-    echo "\t -t == Determines how many transit nodes will be applied"
-    echo "\t -p == Path to the first packet"
+    echo "\t\t -t == Determines how many transit nodes will be applied"
+    echo "\t\t -p == Path to the first packet"
     echo "\tWARNING \n\t\t-c and -r cannot be used at same time \n\t\tAlso if -a is present, both -c and -r will be ignored"
     echo "\t -m == Destination mac address. Used only for transit. \n\t\tNote: mac address 0xffffffffffff (BC) has special meaning -> mac address will not be changed. \n\t\tThis value is used as default"
     echo "\t -n == Max nodes"
@@ -48,7 +49,7 @@ compile() {
     cd $SRC
 
     REPARE="yes"
-
+    # When header stack is used this needs to execute. Now SRC will never be "sink" because it will change its name to int.
     if [ $REPARE = "yes" ] && [ $SRC = "sink" ]
     then
         SPEC_FILE="tmp.not-spec"
@@ -151,7 +152,7 @@ run_all() {
     echo "\033[33m$CODE\033[0m"
     sudo $CODE
 
-    if [ $SRC = "sink" ]
+    if [ $OLD = "sink" ]
     then
         sleep 5
     else
@@ -159,7 +160,7 @@ run_all() {
     fi
     # Kill running dpdk pipeline
     #@!#
-    PID_RAW=`ps aux | grep dpdk-21.05/examples/pipeline | grep Rl`
+    PID_RAW=`ps aux | grep dpdk/examples/pipeline | grep Rl`
     PID=`echo $PID_RAW | awk '{print$2}'`
     sudo kill -9 $PID
 }
@@ -173,20 +174,20 @@ RUN_ONLY=0
 RUN_ALL=0
 TRAN_CNT=1
 PCAP_IN="udp.pcap"
-NODE_CNT=2
+NODE_CNT=4
 MAC_ADDR="0xffffffffffff"
 GEN_EN=1
-OPTIONS="dst port 42"
+OPTIONS="" # "dst port 42"
 
 FIRST_IFC="int1"
 SECOND_IFC="int2"
 
 # Path to compiler
-P4C="../../../../p4c/build/p4c-dpdk"
+P4C="../../p4c/build/p4c-dpdk"
 
 # Path to interpret
 # WARNING if "dpdk-21.05/examples/pipeline" part is changed code after this @!# also needs to be changed
-PIPE="../../../../dpdk-21.05/examples/pipeline/build/pipeline"
+PIPE="../../dpdk/examples/pipeline/build/pipeline"
 
 while getopts "s:crat:p:m:n:d" o; do
     case "${o}" in
@@ -242,25 +243,32 @@ fi
 # All nodes
 if [ $RUN_ALL -eq 1 ]
 then
-    if [ $GEN_EN -eq 1 ]
-    then
-        python3 generate.py -r -t -s -n $NODE_CNT -m $MAC_ADDR
-    fi
     # Common variables
-    
     CNT=0 
 
     # SOURCE
+    if [ $GEN_EN -eq 1 ]
+    then
+        python3 generate.py -r -c -n $NODE_CNT -m $MAC_ADDR
+    fi
+
     # In CLI IN and OUT ifc are swapped
     IN_IFC=$SECOND_IFC
     OUT_IFC=$FIRST_IFC
 
     run_all source $PCAP_IN $CNT
 
-    IN_IFC=$FIRST_IFC
-    OUT_IFC=$SECOND_IFC
+    # IN_IFC=$FIRST_IFC
+    # OUT_IFC=$SECOND_IFC
+
+    
 
     # TRANSIT
+    if [ $GEN_EN -eq 1 ]
+    then
+        python3 generate.py -t -n $NODE_CNT -m $MAC_ADDR
+    fi
+
     while [ $CNT -ne $TRAN_CNT ]
     do
         if [ $CNT -eq 0 ]
@@ -277,12 +285,22 @@ then
     done
 
     # SINK
+    if [ $GEN_EN -eq 1 ]
+    then
+        python3 generate.py -s -n $NODE_CNT -m $MAC_ADDR
+    fi
+
     run_all sink    transit$((TRAN_CNT-1)).pcap $CNT
 
 # Single node
 else
     OLD=$SRC
-    SRC="int"
+    if [ $SRC = "transit" -o $SRC = "sink" -o $SRC = "source" ]
+    then
+        OLD=$SRC
+        SRC="int"
+    fi
+
     if [ $GEN_EN -eq 1 ]
     then
         if [ $OLD = "transit" ]

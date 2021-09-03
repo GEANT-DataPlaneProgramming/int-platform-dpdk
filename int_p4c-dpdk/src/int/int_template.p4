@@ -24,15 +24,14 @@
 #include <psa.p4>
 #include "../headers.p4"
 
-// 0 - TRANSIT
-// 1 - SOURCE
+// If both values are 1, program is ending with seg fault
 const bit<8> SOURCE = {{c}};
 const bit<8> SINK = {{s}};
 
 parser MyIngressParser(packet_in packet,
                 out     headers_t                               hdr,
                 inout   metadata_t                              meta,
-                in      psa_ingress_parser_input_metadata_t     standard_metadata,
+                in      psa_ingress_parser_input_metadata_t     istd,
                 in      empty_metadata_t                        resub_meta,
                 in      empty_metadata_t                        recirc_meta
                 
@@ -63,6 +62,7 @@ parser MyIngressParser(packet_in packet,
         packet.extract(hdr.udp);
         meta.l4_src = hdr.udp.srcPort;
         meta.l4_dst = hdr.udp.dstPort;
+        meta.dscp = meta.dscp & DSCP_MASK;
         transition select(meta.dscp) {
             8w0x20: parse_int_shim;
             default: accept;
@@ -73,6 +73,7 @@ parser MyIngressParser(packet_in packet,
         packet.extract(hdr.tcp);
         meta.l4_src = hdr.tcp.srcPort;
         meta.l4_dst = hdr.tcp.dstPort;
+        meta.dscp = meta.dscp & DSCP_MASK;
         transition select(meta.dscp) {
             8w0x20: parse_int_shim;
             default: accept;
@@ -93,7 +94,7 @@ parser MyIngressParser(packet_in packet,
 control MyIngress(
     inout   headers_t                       hdr,
     inout   metadata_t                      meta,
-    in      psa_ingress_input_metadata_t    standard_metadata,
+    in      psa_ingress_input_metadata_t    istd,
     inout   psa_ingress_output_metadata_t   ostd
     ) 
 {
@@ -103,7 +104,7 @@ control MyIngress(
             meta.switch_id = switch_id;
             meta.insert_byte_cnt = 0;
             meta.int_hdr_word_len = 0;
-            // meta.l3_mtu = l3_mtu;
+            meta.l3_mtu = l3_mtu;
         }
 
         action default_transit_conf() {
@@ -117,36 +118,41 @@ control MyIngress(
                 configure_transit;
                 default_transit_conf;
             }
-            default_action = default_transit_conf();
+            {% if g == False %}
+                {% set out = "default_action = default_transit_conf();" %}
+            {% else %}
+                {% set out = "" %}
+            {% endif %}
+            {{out}}
         }
 
         //---------------------------
         // ADD HEADER
         //---------------------------
-        action add_1() {                                                        // add(x)
-            meta.int_hdr_word_len = meta.int_hdr_word_len + 1;     //x
-            meta.insert_byte_cnt  = meta.insert_byte_cnt + 4;      // x*4
-        }
-        action add_2() {
-            meta.int_hdr_word_len = meta.int_hdr_word_len + 2;
-            meta.insert_byte_cnt  = meta.insert_byte_cnt + 8;
-        }
-        action add_3() {
-            meta.int_hdr_word_len = meta.int_hdr_word_len + 3;
-            meta.insert_byte_cnt  = meta.insert_byte_cnt + 12;
-        }
-        action add_4() {
-            meta.int_hdr_word_len = meta.int_hdr_word_len + 4;
-            meta.insert_byte_cnt  = meta.insert_byte_cnt + 16;
-        }
-        action add_5() {
-            meta.int_hdr_word_len = meta.int_hdr_word_len + 5;
-            meta.insert_byte_cnt  = meta.insert_byte_cnt + 20;
-        }
-        action add_6() {
-            meta.int_hdr_word_len = meta.int_hdr_word_len + 6;
-            meta.insert_byte_cnt  = meta.insert_byte_cnt + 24;
-        }
+            action add_1() {                                                        // add(x)
+                meta.int_hdr_word_len = meta.int_hdr_word_len + 1;     //x
+                meta.insert_byte_cnt  = meta.insert_byte_cnt + 4;      // x*4
+            }
+            action add_2() {
+                meta.int_hdr_word_len = meta.int_hdr_word_len + 2;
+                meta.insert_byte_cnt  = meta.insert_byte_cnt + 8;
+            }
+            action add_3() {
+                meta.int_hdr_word_len = meta.int_hdr_word_len + 3;
+                meta.insert_byte_cnt  = meta.insert_byte_cnt + 12;
+            }
+            action add_4() {
+                meta.int_hdr_word_len = meta.int_hdr_word_len + 4;
+                meta.insert_byte_cnt  = meta.insert_byte_cnt + 16;
+            }
+            action add_5() {
+                meta.int_hdr_word_len = meta.int_hdr_word_len + 5;
+                meta.insert_byte_cnt  = meta.insert_byte_cnt + 20;
+            }
+            action add_6() {
+                meta.int_hdr_word_len = meta.int_hdr_word_len + 6;
+                meta.insert_byte_cnt  = meta.insert_byte_cnt + 24;
+            }
 
         //---------------------------
         // SET HEADER
@@ -162,128 +168,129 @@ control MyIngress(
         // hdr.int_egress_port_tx_util   7
 
         // Note, some data are replaced by constants because compiler/interpret does not support all required operations
-        action int_set_header_0() {
-            hdr.int_switch_id.setValid();
-            hdr.int_switch_id.switch_id = meta.switch_id;
-        }
-        action int_set_header_1() {
-            hdr.int_port_ids.setValid();
-            hdr.int_port_ids.ingress_port_id = meta.ingress_port;
-            hdr.int_port_ids.egress_port_id = ostd.egress_port;
-        }
-        action int_set_header_2() {
-            hdr.int_hop_latency.setValid();
-            hdr.int_hop_latency.hop_latency = 42; //(bit<32>)(standard_metadata.egress_global_timestamp - meta.int_metadata.ingress_tstamp);
-        }
-        action int_set_header_3() {
-            hdr.int_q_occupancy.setValid();
-            hdr.int_q_occupancy.q_id = 0; // qid not defined in v1model
-            hdr.int_q_occupancy.q_occupancy = 0x24B; //(bit<24>)standard_metadata.enq_qdepth;
-        }
-        action int_set_header_4() {
-            hdr.int_ingress_tstamp.setValid();
-            hdr.int_ingress_tstamp.ingress_tstamp = meta.ingress_tstamp; //* 1000; //convert us to ns
-        }
-        action int_set_header_5() {
-            hdr.int_egress_tstamp.setValid();
-            hdr.int_egress_tstamp.egress_tstamp = 0xFFFFABECEDACFFFF; //standard_metadata.egress_global_timestamp * 1000; //convert us to ns
-        }
-        action int_set_header_6() {
-            hdr.int_level2_port_ids.setValid();
-            // no such metadata in v1model
-            hdr.int_level2_port_ids.ingress_port_id = 0;
-            hdr.int_level2_port_ids.egress_port_id = 0;
-        }
-        action int_set_header_7() {
-            hdr.int_egress_port_tx_util.setValid();
-            // no such metadata in v1model
-            hdr.int_egress_port_tx_util.egress_port_tx_util = 0;
-        }
+            action int_set_header_0() {
+                hdr.int_switch_id.setValid();
+                hdr.int_switch_id.switch_id = meta.switch_id;
+            }
+            action int_set_header_1() {
+                hdr.int_port_ids.setValid();
+                hdr.int_port_ids.ingress_port_id = meta.ingress_port;
+                hdr.int_port_ids.egress_port_id = ostd.egress_port;
+            }
+            action int_set_header_2() {
+                hdr.int_hop_latency.setValid();
+                hdr.int_hop_latency.hop_latency = 0;
+            }
+            action int_set_header_3() {
+                hdr.int_q_occupancy.setValid();
+                // no such metadata in psamodel
+                hdr.int_q_occupancy.q_id = 0; 
+                hdr.int_q_occupancy.q_occupancy = 0;
+            }
+            action int_set_header_4() {
+                hdr.int_ingress_tstamp.setValid();
+                hdr.int_ingress_tstamp.ingress_tstamp = meta.ingress_tstamp; 
+            }
+            action int_set_header_5() {
+                hdr.int_egress_tstamp.setValid();
+                hdr.int_egress_tstamp.egress_tstamp = 0;
+            }
+            action int_set_header_6() {
+                hdr.int_level2_port_ids.setValid();
+                // no such metadata in psamodel
+                hdr.int_level2_port_ids.ingress_port_id = 0;
+                hdr.int_level2_port_ids.egress_port_id = 0;
+            }
+            action int_set_header_7() {
+                hdr.int_egress_port_tx_util.setValid();
+                // no such metadata in psamodel
+                hdr.int_egress_port_tx_util.egress_port_tx_util = 0;
+            }
 
         //---------------------------
         // HEADER 0003
         //---------------------------
 
-        action int_set_header_0003_i0() {
-            ;
-        }
-        action int_set_header_0003_i1() {
-            int_set_header_3();
-            add_1();
-        }
-        action int_set_header_0003_i2() {
-            int_set_header_2();
-            add_1();
-        }
-        action int_set_header_0003_i3() {
-            int_set_header_5();
-            int_set_header_2();
-            add_3();
-        }
-        action int_set_header_0003_i4() {
-            int_set_header_1();
-            add_1();
-        }
-        action int_set_header_0003_i5() {
-            int_set_header_3();
-            int_set_header_1();
-            add_2();
-        }
-        action int_set_header_0003_i6() {
-            int_set_header_2();
-            int_set_header_1();
-            add_2();
-        }
-        action int_set_header_0003_i7() {
-            int_set_header_3();
-            int_set_header_2();
-            int_set_header_1();
-            add_3();
-        }
-        action int_set_header_0003_i8() {
-            int_set_header_0();
-            add_1();
-        }
-        action int_set_header_0003_i9() {
-            int_set_header_3();
-            int_set_header_0();
-            add_2();
-        }
-        action int_set_header_0003_i10() {
-            int_set_header_2();
-            int_set_header_0();
-            add_2();
-        }
-        action int_set_header_0003_i11() {
-            int_set_header_3();
-            int_set_header_2();
-            int_set_header_0();
-            add_3();
-        }
-        action int_set_header_0003_i12() {
-            int_set_header_1();
-            int_set_header_0();
-            add_2();
-        }
-        action int_set_header_0003_i13() {
-            int_set_header_3();
-            int_set_header_1();
-            int_set_header_0();
-            add_3();
-        }
-        action int_set_header_0003_i14() {
-            int_set_header_2();
-            int_set_header_1();
-            int_set_header_0();
-            add_3();
-        }
-        action int_set_header_0003_i15() {
-            int_set_header_3();
-            int_set_header_2();
-            int_set_header_1();
-            int_set_header_0();
-            add_4();
-        }
+            action int_set_header_0003_i0() {
+                ;
+            }
+            action int_set_header_0003_i1() {
+                int_set_header_3();
+                add_1();
+            }
+            action int_set_header_0003_i2() {
+                int_set_header_2();
+                add_1();
+            }
+            action int_set_header_0003_i3() {
+                int_set_header_5();
+                int_set_header_2();
+                add_3();
+            }
+            action int_set_header_0003_i4() {
+                int_set_header_1();
+                add_1();
+            }
+            action int_set_header_0003_i5() {
+                int_set_header_3();
+                int_set_header_1();
+                add_2();
+            }
+            action int_set_header_0003_i6() {
+                int_set_header_2();
+                int_set_header_1();
+                add_2();
+            }
+            action int_set_header_0003_i7() {
+                int_set_header_3();
+                int_set_header_2();
+                int_set_header_1();
+                add_3();
+            }
+            action int_set_header_0003_i8() {
+                int_set_header_0();
+                add_1();
+            }
+            action int_set_header_0003_i9() {
+                int_set_header_3();
+                int_set_header_0();
+                add_2();
+            }
+            action int_set_header_0003_i10() {
+                int_set_header_2();
+                int_set_header_0();
+                add_2();
+            }
+            action int_set_header_0003_i11() {
+                int_set_header_3();
+                int_set_header_2();
+                int_set_header_0();
+                add_3();
+            }
+            action int_set_header_0003_i12() {
+                int_set_header_1();
+                int_set_header_0();
+                add_2();
+            }
+            action int_set_header_0003_i13() {
+                int_set_header_3();
+                int_set_header_1();
+                int_set_header_0();
+                add_3();
+            }
+            action int_set_header_0003_i14() {
+                int_set_header_2();
+                int_set_header_1();
+                int_set_header_0();
+                add_3();
+            }
+            action int_set_header_0003_i15() {
+                int_set_header_3();
+                int_set_header_2();
+                int_set_header_1();
+                int_set_header_0();
+                add_4();
+            }
 
         // Upper bit
         table tb_int_inst_0003 {
@@ -306,94 +313,93 @@ control MyIngress(
                 int_set_header_0003_i15;
             }
             key = {
-                hdr.transit_int_header.instruction_mask1: exact;
+                meta.mask: exact;
             }
         }
 
         //---------------------------
         // HEADER 0407
         //---------------------------
-        action int_set_header_0407_i0() {
-            ;
-        }    
-        action int_set_header_0407_i1() {
-            int_set_header_7();
-            add_1();
-        }
-        action int_set_header_0407_i2() {
-            int_set_header_6();
-            add_1();
-        }
-        action int_set_header_0407_i3() {
-            int_set_header_7();
-            int_set_header_6();
-            add_2();
-
-        }
-        action int_set_header_0407_i4() {
-            int_set_header_5();
-            add_2();
-        }
-        action int_set_header_0407_i5() {
-            int_set_header_7();
-            int_set_header_5();
-            add_3();
-        }
-        action int_set_header_0407_i6() {
-            int_set_header_6();
-            int_set_header_5();
-            add_3();
-        }
-        action int_set_header_0407_i7() {
-            int_set_header_7();
-            int_set_header_6();
-            int_set_header_5();
-            add_4();
-        }
-        action int_set_header_0407_i8() {
-            int_set_header_4();
-            add_2();
-        }
-        action int_set_header_0407_i9() {
-            int_set_header_7();
-            int_set_header_4();
-            add_3();
-        }
-        action int_set_header_0407_i10() {
-            int_set_header_6();
-            int_set_header_4();
-            add_3();
-        }
-        action int_set_header_0407_i11() {
-            int_set_header_7();
-            int_set_header_6();
-            int_set_header_4();
-            add_4();
-        }
-        action int_set_header_0407_i12() {
-            int_set_header_5();
-            int_set_header_4();
-            add_4();
-        }
-        action int_set_header_0407_i13() {
-            int_set_header_7();
-            int_set_header_5();
-            int_set_header_4();
-            add_5();
-        }
-        action int_set_header_0407_i14() {
-            int_set_header_6();
-            int_set_header_5();
-            int_set_header_4();
-            add_5();
-        }
-        action int_set_header_0407_i15() {
-            int_set_header_7();
-            int_set_header_6();
-            int_set_header_5();
-            int_set_header_4();
-            add_6();
-        }
+            action int_set_header_0407_i0() {
+                ;
+            }    
+            action int_set_header_0407_i1() {
+                int_set_header_7();
+                add_1();
+            }
+            action int_set_header_0407_i2() {
+                int_set_header_6();
+                add_1();
+            }
+            action int_set_header_0407_i3() {
+                int_set_header_7();
+                int_set_header_6();
+                add_2();
+            }
+            action int_set_header_0407_i4() {
+                int_set_header_5();
+                add_2();
+            }
+            action int_set_header_0407_i5() {
+                int_set_header_7();
+                int_set_header_5();
+                add_3();
+            }
+            action int_set_header_0407_i6() {
+                int_set_header_6();
+                int_set_header_5();
+                add_3();
+            }
+            action int_set_header_0407_i7() {
+                int_set_header_7();
+                int_set_header_6();
+                int_set_header_5();
+                add_4();
+            }
+            action int_set_header_0407_i8() {
+                int_set_header_4();
+                add_2();
+            }
+            action int_set_header_0407_i9() {
+                int_set_header_7();
+                int_set_header_4();
+                add_3();
+            }
+            action int_set_header_0407_i10() {
+                int_set_header_6();
+                int_set_header_4();
+                add_3();
+            }
+            action int_set_header_0407_i11() {
+                int_set_header_7();
+                int_set_header_6();
+                int_set_header_4();
+                add_4();
+            }
+            action int_set_header_0407_i12() {
+                int_set_header_5();
+                int_set_header_4();
+                add_4();
+            }
+            action int_set_header_0407_i13() {
+                int_set_header_7();
+                int_set_header_5();
+                int_set_header_4();
+                add_5();
+            }
+            action int_set_header_0407_i14() {
+                int_set_header_6();
+                int_set_header_5();
+                int_set_header_4();
+                add_5();
+            }
+            action int_set_header_0407_i15() {
+                int_set_header_7();
+                int_set_header_6();
+                int_set_header_5();
+                int_set_header_4();
+                add_6();
+            }
 
         // Lower bit
         table tb_int_inst_0407 {
@@ -416,7 +422,7 @@ control MyIngress(
                 int_set_header_0407_i15;
             }
             key = {
-                hdr.transit_int_header.instruction_mask2: exact;
+                meta.mask: exact;
             }
         }
 
@@ -451,9 +457,7 @@ control MyIngress(
     // SOURCE
         action configure_source(
             bit<16> hop_metadata_len_max_hop, 
-            bit<16> ins_mask,
-            bit<8> ins_mask1,
-            bit<8> ins_mask2
+            bit<16> ins_mask
         ) 
         {
             hdr.transit_int_header.setValid();
@@ -465,20 +469,18 @@ control MyIngress(
             hdr.ck_helper.old_totalLen = hdr.ipv4.totalLen;
 
             hdr.int_shim.int_type = INT_TYPE_HOP_BY_HOP;
-            hdr.int_shim.len = INT_ALL_HEADER_LEN_BYTES_8>>2; //3;
+            hdr.int_shim.len = INT_ALL_HEADER_LEN_BYTES_8>>2; // 3;
 
             hdr.transit_int_header.ver = INT_VERSION;
             hdr.transit_int_header.rep = 0;
             hdr.transit_int_header.c_e = 0;
-            hdr.transit_int_header.m_rsvd1 = MAX_HOP_16;
+            hdr.transit_int_header.m_rsvd1 = 0;
             hdr.transit_int_header.rsvd2 = 0;
             hdr.transit_int_header.rsvd3 = 0;
 
             hdr.transit_int_header.hop_info = hop_metadata_len_max_hop;
 
-            hdr.transit_int_header.instruction_mask1 = ins_mask1;
-            hdr.transit_int_header.instruction_mask2 = ins_mask2;
-            hdr.ck_helper.instruction_mask = ins_mask;
+            hdr.transit_int_header.instruction_mask = ins_mask;
 
             hdr.int_shim.dscp = hdr.ipv4.dscp;
             hdr.ipv4.dscp = IPv4_DSCP_INT;
@@ -492,7 +494,8 @@ control MyIngress(
 
         action default_conf()
         {
-            configure_source(HOP_INFO, INSTRUCTION_MASK_COMPLET, INSTRUCTION_MASK1, INSTRUCTION_MASK2);
+            // bit<16> HOP_INFO = Upper 8b corresponds to HOP_META_LEN lower 8b MAX_HOP
+            configure_source(HOP_INFO, INSTRUCTION_MASK_COMPLET);
         }
 
         // INT source must be configured per each flow which must be monitored using INT
@@ -510,9 +513,17 @@ control MyIngress(
             // meta.l4_dst: exact;
         }
         size = 127;
-        default_action = default_conf();
+        {% if g == False %}
+                {% set out = "default_action = default_conf();" %}
+            {% else %}
+                {% set out = "" %}
+            {% endif %}
+            {{out}}
         }
     // SOURCE
+
+Register<bit<32>, bit<32>>(1)
+        report_seq_num_register;
 
     // SINK
         action send_report(bit<48> dp_mac, bit<32> dp_ip, bit<48> collector_mac, bit<32> collector_ip, bit<16> collector_port) {
@@ -571,16 +582,13 @@ control MyIngress(
             // hw_id - specific to the switch, e.g. id of linecard
             hdr.report_fixed_header.hw_id = 0;
             hdr.report_fixed_header.switch_id = meta.switch_id; // meta.switch_id is set in transit config
-            
-            // TODO
-            // missing, badly generated + doesn't work anyway
 
-            // report_seq_num_register.read(seq_num_value, 0);
-            // hdr.report_fixed_header.seq_num = seq_num_value;
-            // report_seq_num_register.write(0, seq_num_value + 1);
+            bit<32> seq_num_value;
+            seq_num_value = report_seq_num_register.read(0);
+            hdr.report_fixed_header.seq_num = seq_num_value;
+            report_seq_num_register.write(0, seq_num_value + 1);
 
-            // TODO
-            hdr.report_fixed_header.ingress_tstamp = 0xffffffff;//(bit<32>)standard_metadata.ingress_global_timestamp;
+            hdr.report_fixed_header.ingress_tstamp = istd.ingress_timestamp;
         }
 
         action remove_int() {
@@ -593,9 +601,11 @@ control MyIngress(
 
             hdr.ipv4.dscp = hdr.int_shim.dscp;
 
+            // TODO is this ok ?
             hdr.ipv4.totalLen = hdr.ipv4.totalLen - INT_ALL_HEADER_LEN_BYTES - meta.total_hops_len;
             hdr.udp.len = hdr.ipv4.totalLen - INT_ALL_HEADER_LEN_BYTES;
 
+            // Note: only metadata added with this node are removed!
             hdr.int_switch_id.setInvalid();
             hdr.int_port_ids.setInvalid();
             hdr.int_ingress_tstamp.setInvalid();
@@ -625,7 +635,12 @@ control MyIngress(
                 remove_int;
                 def_action;
             }
-            default_action = def_action();
+            {% if g == False %}
+                {% set out = "default_action = def_action();" %}
+            {% else %}
+                {% set out = "" %}
+            {% endif %}
+            {{out}}
         }   
     // SINK
 
@@ -666,16 +681,12 @@ control MyIngress(
     apply {
         if (hdr.udp.isValid() || hdr.tcp.isValid()) {
             // SOURCE
-
-                // in case of frame clone for the INT sink reporting
                 // ingress timestamp is not available on Egress pipeline
-                meta.ingress_tstamp = standard_metadata.ingress_timestamp;//0x0;
-                meta.ingress_port = standard_metadata.ingress_port;
+                meta.ingress_tstamp = istd.ingress_timestamp;
+                meta.ingress_port = istd.ingress_port;
 
-                //check if packet appeard on ingress port with active INT source
 
-                if (SOURCE == 8w1)      //1w1
-                    //apply INT source logic on INT monitored flow
+                if (SOURCE == 8w1)
                     tb_int_source.apply();
             // SOURCE
 
@@ -697,7 +708,11 @@ control MyIngress(
 
                         // add INT node metadata headers based on INT instruction_mask
                         tb_int_transit.apply();
+
+                        meta.mask = hdr.transit_int_header.instruction_mask & 0x00F0;
                         tb_int_inst_0003.apply();
+
+                        meta.mask = hdr.transit_int_header.instruction_mask & 0x000F;
                         tb_int_inst_0407.apply();
 
                         // update length fields in IPv4, UDP and INT
@@ -789,7 +804,7 @@ control MyIngressDeparser(
                 hdr.transit_int_header.m_rsvd1,
                 hdr.transit_int_header.rsvd2,
                 hdr.transit_int_header.hop_info,
-                hdr.ck_helper.instruction_mask,
+                hdr.transit_int_header.instruction_mask,
                 hdr.transit_int_header.rsvd3
             });
         }
@@ -851,7 +866,7 @@ control MyIngressDeparser(
 }
 
 parser MyEgressParser(
-            packet_in                           buffer, 
+            packet_in                           packet, 
     out     headers_t                           hdr, 
     inout   metadata_t                          meta, 
     in      psa_egress_parser_input_metadata_t  istd, 
