@@ -38,7 +38,7 @@ pip3 install pyelftools
 
 # P4C Install
 cd ..
-git clone --single-branch --branch stable --recursive https://github.com/Patovap/p4c.git 
+git clone --single-branch --branch stable --recursive https://github.com/GEANT-DataPlaneProgramming/p4c 
 cd p4c/
 mkdir build
 cd build
