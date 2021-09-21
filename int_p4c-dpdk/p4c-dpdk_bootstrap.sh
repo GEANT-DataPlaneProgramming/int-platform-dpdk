@@ -49,7 +49,7 @@ sudo make install
 
 # DPDK Install
 cd ../../
-git clone --single-branch --branch stable --recursive https://github.com/Patovap/dpdk.git
+git clone --single-branch --branch stable --recursivehttps://github.com/GEANT-DataPlaneProgramming/dpdk.git
 cd dpdk
 meson build
 cd build
