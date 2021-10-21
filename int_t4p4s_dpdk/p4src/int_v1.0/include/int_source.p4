@@ -42,7 +42,9 @@ control Int_source(inout headers hdr, inout metadata meta, inout standard_metada
         hdr.ipv4.totalLen = hdr.ipv4.totalLen + INT_ALL_HEADER_LEN_BYTES;  // adding size of INT headers
         
         hdr.udp.len = hdr.udp.len + INT_ALL_HEADER_LEN_BYTES;
-    }
+        hdr.udp.csum = 0;
+        hdr.tcp.csum = 0;
+   }
     
     // INT source must be configured per each flow which must be monitored using INT
     // Flow is defined by src IP, dst IP, src TCP/UDP port, dst TCP/UDP port 
