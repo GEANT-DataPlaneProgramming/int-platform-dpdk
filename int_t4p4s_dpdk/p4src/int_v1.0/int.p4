@@ -60,7 +60,9 @@ control ingress(inout headers hdr, inout metadata meta, inout standard_metadata_
 
         ip_checksum_add(hdr.ipv4.totalLen);
         ip_checksum_add(hdr.ipv4.version ++ hdr.ipv4.ihl ++ hdr.ipv4.dscp ++ hdr.ipv4.ecn);
-    }
+
+        Int_sink.apply(hdr, meta, ig_intr_md);
+   }
 }
 
 control egress(inout headers hdr, inout metadata meta, inout standard_metadata_t eg_intr_md) {

@@ -20,8 +20,8 @@
 
 error
 {
-	INTShimLenTooShort,
-	INTVersionNotSupported
+    INTShimLenTooShort,
+    INTVersionNotSupported
 }
 
 parser ParserImpl(packet_in packet, out headers hdr, inout metadata meta, inout standard_metadata_t standard_metadata) {
@@ -82,11 +82,11 @@ control DeparserImpl(packet_out packet, in headers hdr) {
         packet.emit(hdr.ipv4);
         packet.emit(hdr.udp);
         packet.emit(hdr.tcp);
-        
+
         // INT headers
         packet.emit(hdr.int_shim);
         packet.emit(hdr.int_header);
-        
+
         // local INT node metadata
         packet.emit(hdr.int_switch_id);           // bit 1
         packet.emit(hdr.int_port_ids);            // bit 2
@@ -96,6 +96,8 @@ control DeparserImpl(packet_out packet, in headers hdr) {
         packet.emit(hdr.int_egress_tstamp);       // bit 6
         packet.emit(hdr.int_level2_port_ids);     // bit 7
         packet.emit(hdr.int_egress_port_tx_util); // bit 8
+
+        packet.emit(hdr.influx);
     }
 }
 

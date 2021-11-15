@@ -74,20 +74,23 @@ control Int_transit(inout headers hdr, inout metadata meta, inout standard_metad
     //    hdr.udp.len = hdr.udp.len + (bit<16>)meta.int_metadata.insert_byte_cnt;
     //}
 
-    apply {	
-        // INT transit must process only INT packets
-        if (!hdr.int_header.isValid())
-            return;
-    
-        int_set_header_0();
-        int_set_header_1();
-        int_set_header_4();
-        int_set_header_5();     
-  
-        hdr.ipv4.totalLen = hdr.ipv4.totalLen + 24;
-        hdr.udp.len = hdr.udp.len + 24;
-        hdr.int_shim.len = hdr.int_shim.len + 6;
-        
-        int_hop_cnt_increment();
+    apply {
+        if (!SINK_ENABLE) {
+            // INT transit must process only INT packets
+            if (!hdr.int_header.isValid())
+                return;
+
+            int_set_header_0();
+            int_set_header_1();
+            int_set_header_4();
+            int_set_header_5();
+
+            hdr.ipv4.totalLen = hdr.ipv4.totalLen + 24;
+
+            hdr.udp.len = hdr.udp.len + 24;
+            hdr.int_shim.len = hdr.int_shim.len + 6;
+
+            int_hop_cnt_increment();
+        }
     }
 }

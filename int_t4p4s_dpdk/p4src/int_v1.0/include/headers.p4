@@ -17,7 +17,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
+
 #ifndef _HEADERS_P4_
 #define _HEADERS_P4_
 
@@ -38,7 +38,7 @@ header ipv4_t {
     bit<13> fragOffset;
     bit<8>  ttl;
     bit<8>  protocol;
-    bit<16> hdrChecksum;
+    bit<16> checksum;
     bit<32> srcAddr;
     bit<32> dstAddr;
 }
@@ -88,7 +88,7 @@ header int_header_t {
     bit<3>  rsvd2;
     bit<5>  hop_metadata_len;   // the length of the metadata added by a single INT node (4-byte words)
     bit<8>  remaining_hop_cnt;  // how many switches can still add INT metadata
-    bit<16>  instruction_mask;   
+    bit<16>  instruction_mask;
     bit<16> rsvd3;
 }
 
@@ -131,6 +131,23 @@ header int_egress_port_tx_util_t {
     bit<32> egress_port_tx_util;
 }
 
+header influx_t {
+    bit<32> srcAddr;
+    bit<32> dstAddr;
+    bit<16> ingress_port_id;
+    bit<16> egress_port_id;
+    bit<8>  meta_len;
+    bit<3>  resv1;
+    bit<5>  hop_meta_len;
+    bit<16> rsvd2;
+    bit<32> ndk_tstamp_h;
+    bit<32> ndk_tstamp_l;
+    bit<32> delay_h;
+    bit<32> delay_l;
+    bit<32> seq;
+}
+
+
 struct layer34_metadata_t {
     bit<16> l4_src;
     bit<16> l4_dst;
@@ -155,16 +172,19 @@ struct headers {
     // INT headers
     intl4_shim_t int_shim;
     int_header_t int_header;
-  
+
     // local INT node metadata
     int_egress_port_tx_util_t int_egress_port_tx_util;
     int_egress_tstamp_t       int_egress_tstamp;
     int_hop_latency_t         int_hop_latency;
     int_ingress_tstamp_t      int_ingress_tstamp;
-    int_port_ids_t            int_port_ids; 
+    int_port_ids_t            int_port_ids;
     int_level2_port_ids_t     int_level2_port_ids;
     int_q_occupancy_t         int_q_occupancy;
     int_switch_id_t           int_switch_id;
+
+    // INT Sink export header
+    influx_t                  influx;
 }
 
 #endif
