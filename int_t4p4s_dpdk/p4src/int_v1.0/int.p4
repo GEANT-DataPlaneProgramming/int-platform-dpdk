@@ -29,15 +29,38 @@
 #include "include/parser.p4"
 #include "include/int_source.p4"
 #include "include/int_transit.p4"
+#include "include/int_sink.p4"
 
 control ingress(inout headers hdr, inout metadata meta, inout standard_metadata_t ig_intr_md) {
-	apply {	
-		if (!hdr.udp.isValid() && !hdr.tcp.isValid())
-			exit;
+    action ip_checksum_sub(bit<16> value) {
+        hdr.ipv4.checksum = ~hdr.ipv4.checksum;
+        if (hdr.ipv4.checksum < value)
+            hdr.ipv4.checksum = hdr.ipv4.checksum - 1;
+        hdr.ipv4.checksum = hdr.ipv4.checksum - value;
+        hdr.ipv4.checksum = ~hdr.ipv4.checksum;
+    }
+
+    action ip_checksum_add(bit<16> value) {
+        hdr.ipv4.checksum = ~hdr.ipv4.checksum;
+        hdr.ipv4.checksum = hdr.ipv4.checksum + value;
+        if (hdr.ipv4.checksum < value)
+            hdr.ipv4.checksum = hdr.ipv4.checksum + 1;
+        hdr.ipv4.checksum = ~hdr.ipv4.checksum;
+    }
+
+    apply {
+        if (!hdr.udp.isValid() && !hdr.tcp.isValid())
+            exit;
+
+        ip_checksum_sub(hdr.ipv4.totalLen);
+        ip_checksum_sub(hdr.ipv4.version ++ hdr.ipv4.ihl ++ hdr.ipv4.dscp ++ hdr.ipv4.ecn);
 
         Int_source.apply(hdr, meta, ig_intr_md);
         Int_transit.apply(hdr, meta, ig_intr_md);
-	}
+
+        ip_checksum_add(hdr.ipv4.totalLen);
+        ip_checksum_add(hdr.ipv4.version ++ hdr.ipv4.ihl ++ hdr.ipv4.dscp ++ hdr.ipv4.ecn);
+    }
 }
 
 control egress(inout headers hdr, inout metadata meta, inout standard_metadata_t eg_intr_md) {
