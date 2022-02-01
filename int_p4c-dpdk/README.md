@@ -2,8 +2,8 @@
 This implementation uses P4-16 PSA model. For information about restrictions please read `Comparison.md` file in `doc/` directory
 
 ## Make it work - Ubuntu 20.04
-1. Install
-    a) To your system
+1. Install\
+    a) To your system \
         To install use `p4c-dpdk_bootstrap.sh` script in `int_p4c-dpdk` directory. It will:
     * Install all dependencies
     * Download and install p4c compiler
@@ -13,8 +13,12 @@ This implementation uses P4-16 PSA model. For information about restrictions ple
     * Build docker image in `docker` directory
     * You can run it using something like this
     ```
-    sudo docker run -it --privileged -v /sys/bus/pci/drivers:/sys/bus/pci/drivers -v /sys/kernel/mm/hugepages:/sys/kernel/mm/hugepages -v /sys/devices/system/node:/sys/devices/system/node -v
-/dev:/dev --name dpdk-test <image-name>
+    sudo docker run -it --privileged \
+    -v /sys/bus/pci/drivers:/sys/bus/pci/drivers \
+    -v /sys/kernel/mm/hugepages:/sys/kernel/mm/hugepages \
+    -v /sys/devices/system/node:/sys/devices/system/node \
+    -v /dev:/dev \
+    --name dpdk-test <image-name>
     ```
 2.  Set up hugepages for DPDK by running `sudo ./int_dpdk/dpdk_hugepages_setup.sh -s [2048kB, 1048576kB] -c [page_num]`
 3. Run int application using `swx_p4c.sh` script in `src/`. This code does following:
