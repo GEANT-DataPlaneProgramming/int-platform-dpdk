@@ -35,9 +35,9 @@ done
 
 pip3 install scapy ply
 pip3 install pyelftools
+pip3 install jinja2
 
 # P4C Install
-cd ..
 git clone --single-branch --branch stable --recursive https://github.com/GEANT-DataPlaneProgramming/p4c 
 cd p4c/
 mkdir build
@@ -48,8 +48,8 @@ make -j4 check
 sudo make install
 
 # DPDK Install
-cd ../../
-git clone --single-branch --branch stable --recursivehttps://github.com/GEANT-DataPlaneProgramming/dpdk.git
+cd ../
+git clone --single-branch --branch stable --recursive https://github.com/GEANT-DataPlaneProgramming/dpdk.git
 cd dpdk
 meson build
 cd build
