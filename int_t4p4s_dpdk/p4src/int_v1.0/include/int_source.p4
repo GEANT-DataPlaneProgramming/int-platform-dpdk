@@ -20,6 +20,9 @@
  */
 
 control Int_source(inout headers hdr, inout metadata meta, inout standard_metadata_t standard_metadata) {
+	
+    register<bit<8>>(1) reg1;
+
     action configure_source() {
         hdr.int_shim.setValid();
         hdr.int_shim.int_type = INT_TYPE_HOP_BY_HOP;
@@ -30,12 +33,15 @@ control Int_source(inout headers hdr, inout metadata meta, inout standard_metada
         hdr.int_header.rep = 0;
         hdr.int_header.c = 0;
         hdr.int_header.e = 0;
-        hdr.int_header.rsvd1 = 0;
+        hdr.int_header.rsvd1 = 1;
         hdr.int_header.rsvd2 = 0;
         hdr.int_header.hop_metadata_len = 0x06;
         hdr.int_header.remaining_hop_cnt = 0xff;  // will be decreased immediately by 1 within transit process
         hdr.int_header.instruction_mask = 0x00cc; 
         
+        reg1.read(hdr.int_header.seq, 0);
+        reg1.write(0, hdr.int_header.seq + 1);
+
         hdr.int_shim.dscp = hdr.ipv4.dscp;
         
         hdr.ipv4.dscp = IPv4_DSCP_INT;   // indicates that INT header in the packet
