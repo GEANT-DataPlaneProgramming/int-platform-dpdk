@@ -21,7 +21,7 @@
 
 control Int_source(inout headers hdr, inout metadata meta, inout standard_metadata_t standard_metadata) {
 	
-    register<bit<8>>(1) reg1;
+    register<bit<16>>(1) reg1;
 
     action configure_source() {
         hdr.int_shim.setValid();
