@@ -33,14 +33,20 @@ control Int_source(inout headers hdr, inout metadata meta, inout standard_metada
         hdr.int_header.rep = 0;
         hdr.int_header.c = 0;
         hdr.int_header.e = 0;
-        hdr.int_header.rsvd1 = 0;
+        hdr.int_header.rsvd1 = 1;
         hdr.int_header.rsvd2 = 0;
         hdr.int_header.hop_metadata_len = 0x06;
         hdr.int_header.remaining_hop_cnt = 0xff;  // will be decreased immediately by 1 within transit process
         hdr.int_header.instruction_mask = 0x00cc; 
 
         reg1.read(hdr.int_header.seq, 0);
-        reg1.write(0, hdr.int_header.seq + 1);
+        hdr.int_header.seq = hdr.int_header.seq + 1;
+        reg1.write(0, hdr.int_header.seq);
+
+        // Thre is a bug where operation read() reads bytes in Little endian and operation write() write bytes in Big endian.
+        // To suppress this bug we have to read and write each value twice.  
+        reg1.read(hdr.int_header.seq, 0);
+        reg1.write(0, hdr.int_header.seq);
 
         hdr.int_shim.dscp = hdr.ipv4.dscp;
         
