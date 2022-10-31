@@ -155,6 +155,7 @@ struct layer34_metadata_t {
 }
 
 struct metadata {
+    bit<7>  padding;
     bit<32> ingress_tstamp_system_h;
     bit<32> ingress_tstamp_system_l;
     bit<32> egress_tstamp_system_h;
